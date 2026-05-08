@@ -2,64 +2,48 @@ const express = require('express');
 const app = express();
 app.use(express.urlencoded({ extended: false }));
 
-app.post('/ussd', (req, res) => {
+async function askGemini(symptoms) {
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: `You are a health triage assistant. Based on these symptoms: "${symptoms}", classify urgency as one of:
+- EMERGENCY: life threatening, needs hospital immediately
+- URGENT: needs clinic within 24 hours  
+- LOW RISK: can rest at home
+
+Reply in this exact format only:
+LEVEL: [EMERGENCY/URGENT/LOW RISK]
+ADVICE: [one sentence of safe advice]`
+          }]
+        }]
+      })
+    }
+  );
+  const data = await response.json();
+  return data.candidates[0].content.parts[0].text;
+}
+
+app.post('/ussd', async (req, res) => {
   const { text } = req.body;
   let response = '';
 
   if (text === '') {
     response = `CON Welcome to iCare Health Line.
-Are you having difficulty breathing?
-1. Yes
-2. No`;
-
-  } else if (text === '1') {
-    response = `END EMERGENCY: Please go to the nearest hospital immediately. Call for help now.`;
-
-  } else if (text === '2') {
-    response = `CON Do you have chest pain?
-1. Yes
-2. No`;
-
-  } else if (text === '2*1') {
-    response = `END EMERGENCY: Chest pain is serious. Go to the nearest hospital immediately.`;
-
-  } else if (text === '2*2') {
-    response = `CON Are you bleeding heavily?
-1. Yes
-2. No`;
-
-  } else if (text === '2*2*1') {
-    response = `END EMERGENCY: Apply pressure to the wound and go to hospital immediately.`;
-
-  } else if (text === '2*2*2') {
-    response = `CON Do you have a high fever?
-1. Yes
-2. No`;
-
-  } else if (text === '2*2*2*1') {
-    response = `CON How long have you had the fever?
-1. Less than 2 days
-2. More than 2 days`;
-
-  } else if (text === '2*2*2*1*1') {
-    response = `END URGENT: Visit a clinic within 24 hours. Drink plenty of water and rest.`;
-
-  } else if (text === '2*2*2*1*2') {
-    response = `END URGENT: Fever lasting over 2 days needs a doctor. Visit a clinic today.`;
-
-  } else if (text === '2*2*2*2') {
-    response = `CON Do you have severe vomiting or diarrhea?
-1. Yes
-2. No`;
-
-  } else if (text === '2*2*2*2*1') {
-    response = `END URGENT: Visit a clinic soon. Drink water to avoid dehydration.`;
-
-  } else if (text === '2*2*2*2*2') {
-    response = `END LOW RISK: Your symptoms seem mild. Rest, drink water, monitor yourself. Visit a clinic if it gets worse.`;
+Please describe your main symptom briefly.
+Example: fever, chest pain, bleeding`;
 
   } else {
-    response = `END Thank you for using iCare. Stay safe.`;
+    try {
+      const result = await askGemini(text);
+      response = `END ${result}`;
+    } catch (err) {
+      response = `END Sorry, service unavailable. If emergency, go to hospital immediately.`;
+    }
   }
 
   res.set('Content-Type', 'text/plain');
