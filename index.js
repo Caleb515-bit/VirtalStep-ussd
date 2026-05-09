@@ -15,14 +15,17 @@ async function askGemini(symptoms) {
        model: 'llama-3.1-8b-instant',
         messages: [{
           role: 'user',
-          content: `You are a health triage assistant. Based on these symptoms: "${symptoms}", classify urgency as one of:
-- EMERGENCY: life threatening, needs hospital immediately
-- URGENT: needs clinic within 24 hours
-- LOW RISK: can rest at home
+          content: `You are a strict health triage assistant. You ONLY respond to health symptoms and medical complaints.
 
-Reply in this exact format only:
-LEVEL: [EMERGENCY/URGENT/LOW RISK]
-ADVICE: [one sentence of safe advice]`
+If the input is NOT a health symptom, respond exactly with:
+LEVEL: INVALID
+ADVICE: Please describe your health symptom. Example: fever, chest pain, headache.
+
+If it IS a health symptom, respond exactly with:
+LEVEL: [EMERGENCY / URGENT / LOW RISK]
+ADVICE: [one sentence of safe health advice]
+
+User input: "${symptoms}"`
         }]
       })
     }
@@ -43,7 +46,11 @@ Example: fever, chest pain, bleeding`;
   } else {
     try {
       const result = await askGemini(text);
-      response = `END ${result}`;
+if (result.includes('LEVEL: INVALID')) {
+  response = `CON ${result.split('ADVICE: ')[1]}`;
+} else {
+  response = `END ${result}`;
+}
     } catch (err) {
     console.error('Gemini error:', err.message);
     response = `END Sorry, service unavailable. If emergency, go to hospital immediately.`;
