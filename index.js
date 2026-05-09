@@ -4,34 +4,33 @@ app.use(express.urlencoded({ extended: false }));
 
 async function askGemini(symptoms) {
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    'https://api.groq.com/openai/v1/chat/completions',
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
+      },
       body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `You are a health triage assistant. Based on these symptoms: "${symptoms}", classify urgency as one of:
+        model: 'llama3-8b-8192',
+        messages: [{
+          role: 'user',
+          content: `You are a health triage assistant. Based on these symptoms: "${symptoms}", classify urgency as one of:
 - EMERGENCY: life threatening, needs hospital immediately
-- URGENT: needs clinic within 24 hours  
+- URGENT: needs clinic within 24 hours
 - LOW RISK: can rest at home
 
 Reply in this exact format only:
 LEVEL: [EMERGENCY/URGENT/LOW RISK]
 ADVICE: [one sentence of safe advice]`
-          }]
         }]
       })
     }
   );
   const data = await response.json();
-  console.log('Gemini response:', JSON.stringify(data));
-  if (!data.candidates || data.candidates.length === 0) {
-    throw new Error('No candidates: ' + JSON.stringify(data));
-  }
-  return data.candidates[0].content.parts[0].text;
+  console.log('Groq response:', JSON.stringify(data));
+  return data.choices[0].message.content;
 }
-
 app.post('/ussd', async (req, res) => {
   const { text } = req.body;
   let response = '';
