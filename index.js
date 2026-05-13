@@ -1,3 +1,9 @@
+const AfricasTalking = require('africastalking');
+const at = AfricasTalking({
+  apiKey: process.env.AT_API_KEY,
+  username: 'sandbox'
+});
+const voice = at.VOICE;
 const express = require('express');
 const app = express();
 app.use(express.urlencoded({ extended: false }));
@@ -59,6 +65,19 @@ if (result.includes('LEVEL: INVALID')) {
 
   res.set('Content-Type', 'text/plain');
   res.send(response);
+});
+
+app.get('/test-call', async (req, res) => {
+  try {
+    const result = await voice.call({
+      callFrom: '+2547000000000',
+      callTo: ['+2348122767290'],
+      clientRequestId: 'icare-test',
+    });
+    res.send(result);
+  } catch (err) {
+    res.send('Error: ' + err.message);
+  }
 });
 
 const PORT = process.env.PORT || 3000;
