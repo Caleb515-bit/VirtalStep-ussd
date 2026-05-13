@@ -62,4 +62,42 @@ if (result.includes('LEVEL: INVALID')) {
 });
 
 const PORT = process.env.PORT || 3000;
+app.post('/voice', async (req, res) => {
+  const { dtmfDigits, text } = req.body;
+
+  let response = '';
+
+  if (!dtmfDigits) {
+    response = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <GetDigits timeout="30" finishOnKey="#" callbackUrl="https://icare-ussd.onrender.com/voice-answer">
+    <Say>Welcome to iCare Health Line. Please describe your symptom after the beep, then press hash.</Say>
+  </GetDigits>
+  <Say>We did not receive your input. Please call again.</Say>
+</Response>`;
+  }
+
+  res.set('Content-Type', 'text/xml');
+  res.send(response);
+});
+
+app.post('/voice-answer', async (req, res) => {
+  const { dtmfDigits } = req.body;
+
+  try {
+    const result = await askGemini(dtmfDigits || 'unknown symptoms');
+    response = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say>${result}</Say>
+</Response>`;
+  } catch (err) {
+    response = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say>Sorry, service is unavailable. If this is an emergency, please go to your nearest hospital immediately.</Say>
+</Response>`;
+  }
+
+  res.set('Content-Type', 'text/xml');
+  res.send(response);
+});
 app.listen(PORT, () => console.log(`iCare running on port ${PORT}`));
