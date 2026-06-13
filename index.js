@@ -90,7 +90,7 @@ app.post('/voice', async (req, res) => {
     response = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <GetDigits timeout="30" finishOnKey="#" callbackUrl="https://icare-ussd.onrender.com/voice-answer">
-    <Say>Welcome to iCare Health Line. Please describe your symptom after the beep, then press hash.</Say>
+    <Say>Welcome to VitalStep Health Guidance Line. Please describe your symptom after the beep, then press hash.</Say>
   </GetDigits>
   <Say>We did not receive your input. Please call again.</Say>
 </Response>`;
