@@ -45,7 +45,7 @@ app.post('/ussd', async (req, res) => {
   let response = '';
 
   if (text === '') {
-    response = `CON Welcome to iCare Health Line.
+    response = `CON Welcome to VirtalStep Health Line.
 Please describe your main symptom briefly.
 Example: fever, chest pain, bleeding`;
 
