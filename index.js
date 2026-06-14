@@ -119,4 +119,4 @@ app.post('/voice-answer', async (req, res) => {
   res.set('Content-Type', 'text/xml');
   res.send(response);
 });
-app.listen(PORT, () => console.log(`iCare running on port ${PORT}`));
+app.listen(PORT, () => console.log(`VirtalStep running on port ${PORT}`));
