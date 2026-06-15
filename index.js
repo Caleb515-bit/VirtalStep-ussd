@@ -67,19 +67,18 @@ async function sendHospitalSMS(phoneNumber, cleanedLocation) {
   const searchQuery = encodeURIComponent(`hospitals near ${cleanedLocation}`);
   const mapLink = `https://maps.google.com/maps?q=${searchQuery}`;
 
-  const message = `VitalStep Emergency Alert
+  const message = `VitalStep Emergency Alert\n\nFind hospitals near you:\n${mapLink}\n\nAlso call 112 immediately.\nStay calm, help is available.`;
 
-Find hospitals near you:
-${mapLink}
-
-Also call 112 immediately.
-Stay calm, help is available.`;
-
-  await sms.send({
-    to: [phoneNumber],
-    message: message,
-    from: 'VitalStep'
-  });
+  try {
+    const result = await sms.send({
+      to: [phoneNumber],
+      message: message
+    });
+    console.log('SMS result:', JSON.stringify(result));
+  } catch (err) {
+    console.error('SMS send error:', err.message);
+    throw err;
+  }
 }
 
 // ─── USSD HANDLER ────────────────────────────────────────────
@@ -88,11 +87,13 @@ app.post('/ussd', async (req, res) => {
   const steps = text.split('*');
   let response = '';
 
+  // Step 1 — Welcome
   if (text === '') {
     response = `CON Welcome to VitalStep Health Line.
 Please describe your main symptom briefly.
 Example: fever, chest pain, bleeding`;
 
+  // Step 2 — Got symptom, check with AI
   } else if (steps.length === 1) {
     try {
       const result = await askGroq(text);
@@ -113,12 +114,14 @@ Type your area or town to get nearest hospitals via SMS:`;
       response = `END Sorry, service unavailable. If emergency, go to hospital immediately.`;
     }
 
+  // Step 3 — Got location after emergency
   } else if (steps.length === 2) {
     const rawLocation = steps[1];
 
     try {
       const cleanedLocation = await cleanLocation(rawLocation);
       console.log(`Cleaned location: ${cleanedLocation}`);
+      console.log(`Sending SMS to: ${phoneNumber}`);
 
       await sendHospitalSMS(phoneNumber, cleanedLocation);
 
