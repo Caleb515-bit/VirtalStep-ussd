@@ -67,7 +67,7 @@ async function getCoordinates(location) {
   const encoded = encodeURIComponent(location);
   const url = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=1`;
   const response = await fetch(url, {
-    headers: { 'User-Agent': 'VitalStep-Health-App' }
+    headers: { 'User-Agent': 'VitalStep-Health-App/1.0 (calebchidi455@gmail.com)' }
   });
   const data = await response.json();
   if (data.length === 0) return null;
