@@ -90,27 +90,11 @@ async function findNearbyHospitals(lat, lon) {
 }
 
 // ─── SEND HOSPITAL SMS ───────────────────────────────────────
-async function sendHospitalSMS(phoneNumber, hospitals, location) {
-  let message = `🚨 VitalStep Emergency Alert\nNearest hospitals to ${location}:\n\n`;
-
-  if (hospitals.length === 0) {
-    message += `No hospitals found nearby. Please call 112 or go to your nearest clinic immediately.`;
-  } else {
-    hospitals.forEach((h, i) => {
-      const name = h.tags.name || 'Hospital';
-      const mapLink = `https://maps.google.com/?q=${h.lat},${h.lon}`;
-      message += `${i + 1}. ${name}\n${mapLink}\n\n`;
-    });
-  }
-
-  message += `Stay calm. Help is available.`;
-
-  await sms.send({
-    to: [phoneNumber],
-    message: message,
-    from: 'VitalStep'
-  });
-}
+const cleanedLocation = await cleanLocation(rawLocation);
+await sendHospitalSMS(phoneNumber, cleanedLocation);
+response = `END 🚨 Help is on the way!
+Check your SMS for nearby hospitals.
+Call 112 immediately if critical.`;
 
 // ─── USSD HANDLER ────────────────────────────────────────────
 app.post('/ussd', async (req, res) => {
