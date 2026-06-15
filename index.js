@@ -62,39 +62,25 @@ User input: "${rawLocation}"`
   return data.choices[0].message.content.trim();
 }
 
-// ─── GET COORDINATES ─────────────────────────────────────────
-async function getCoordinates(location) {
-  const encoded = encodeURIComponent(location);
-  const url = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=1`;
-  const response = await fetch(url, {
-    headers: { 'User-Agent': 'VitalStep-Health-App/1.0 (calebchidi455@gmail.com)' }
-  });
-  const data = await response.json();
-  if (data.length === 0) return null;
-  return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
-}
-
-// ─── FIND NEARBY HOSPITALS ───────────────────────────────────
-async function findNearbyHospitals(lat, lon) {
-  const query = `
-    [out:json];
-    node["amenity"="hospital"](around:5000,${lat},${lon});
-    out 3;
-  `;
-  const response = await fetch('https://overpass-api.de/api/interpreter', {
-    method: 'POST',
-    body: query
-  });
-  const data = await response.json();
-  return data.elements;
-}
-
 // ─── SEND HOSPITAL SMS ───────────────────────────────────────
-const cleanedLocation = await cleanLocation(rawLocation);
-await sendHospitalSMS(phoneNumber, cleanedLocation);
-response = `END 🚨 Help is on the way!
-Check your SMS for nearby hospitals.
-Call 112 immediately if critical.`;
+async function sendHospitalSMS(phoneNumber, cleanedLocation) {
+  const searchQuery = encodeURIComponent(`hospitals near ${cleanedLocation}`);
+  const mapLink = `https://maps.google.com/maps?q=${searchQuery}`;
+
+  const message = `VitalStep Emergency Alert
+
+Find hospitals near you:
+${mapLink}
+
+Also call 112 immediately.
+Stay calm, help is available.`;
+
+  await sms.send({
+    to: [phoneNumber],
+    message: message,
+    from: 'VitalStep'
+  });
+}
 
 // ─── USSD HANDLER ────────────────────────────────────────────
 app.post('/ussd', async (req, res) => {
@@ -102,27 +88,22 @@ app.post('/ussd', async (req, res) => {
   const steps = text.split('*');
   let response = '';
 
-  // Step 1 — Welcome
   if (text === '') {
     response = `CON Welcome to VitalStep Health Line.
 Please describe your main symptom briefly.
 Example: fever, chest pain, bleeding`;
 
-  // Step 2 — Got symptom, check with AI
   } else if (steps.length === 1) {
     try {
       const result = await askGroq(text);
 
       if (result.includes('LEVEL: INVALID')) {
         response = `CON ${result.split('ADVICE: ')[1]}`;
-
       } else if (result.includes('LEVEL: EMERGENCY')) {
-        // Store symptom result in session via text flow
-        response = `CON 🚨 EMERGENCY DETECTED
+        response = `CON EMERGENCY DETECTED
 ${result.split('ADVICE: ')[1]}
 
-Please type your area or town so we can find the nearest hospital for you:`;
-
+Type your area or town to get nearest hospitals via SMS:`;
       } else {
         response = `END ${result}`;
       }
@@ -132,46 +113,18 @@ Please type your area or town so we can find the nearest hospital for you:`;
       response = `END Sorry, service unavailable. If emergency, go to hospital immediately.`;
     }
 
-  // Step 3 — Got location after emergency
   } else if (steps.length === 2) {
     const rawLocation = steps[1];
 
     try {
-      // Clean location with AI
       const cleanedLocation = await cleanLocation(rawLocation);
       console.log(`Cleaned location: ${cleanedLocation}`);
 
-      // Get coordinates
-      const coords = await getCoordinates(cleanedLocation);
+      await sendHospitalSMS(phoneNumber, cleanedLocation);
 
-      if (!coords) {
-        // Try with just city name as fallback
-        const cityOnly = cleanedLocation.split(',')[0] + ', Nigeria';
-        const fallbackCoords = await getCoordinates(cityOnly);
-
-        if (!fallbackCoords) {
-          await sms.send({
-            to: [phoneNumber],
-            message: `🚨 VitalStep: Could not find hospitals for "${rawLocation}". Please call 112 or visit your nearest clinic immediately.`,
-            from: 'VitalStep'
-          });
-          response = `END We could not locate that area. We have sent you emergency contacts via SMS. Please call 112 immediately.`;
-          res.set('Content-Type', 'text/plain');
-          res.send(response);
-          return;
-        }
-
-        const hospitals = await findNearbyHospitals(fallbackCoords.lat, fallbackCoords.lon);
-        await sendHospitalSMS(phoneNumber, hospitals, cityOnly);
-      } else {
-        const hospitals = await findNearbyHospitals(coords.lat, coords.lon);
-        await sendHospitalSMS(phoneNumber, hospitals, cleanedLocation);
-      }
-
-      response = `END 🚨 Help is on the way!
-We have sent the nearest hospitals to your phone via SMS.
-Please check your messages now.
-If critical, call 112 immediately.`;
+      response = `END Help is on the way!
+Check your SMS for nearby hospitals.
+Call 112 immediately if critical.`;
 
     } catch (err) {
       console.error('Location/SMS error:', err.message);
